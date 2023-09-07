@@ -310,4 +310,9 @@ Mupen_lua_ugui_ext.apply_nineslice = function(style)
             style.textbox.states[visual_state].center,
             style.path, BreitbandGraphics.colors.white, "nearest")
     end
+
+    Mupen_lua_ugui.stylers.windows_10.raised_frame_text_colors = style.button.text_colors
+    Mupen_lua_ugui.stylers.windows_10.edit_frame_text_colors = style.textbox.text_colors
+    Mupen_lua_ugui.stylers.windows_10.font_name = style.font_name
+    Mupen_lua_ugui.stylers.windows_10.font_size = style.font_size
 end
