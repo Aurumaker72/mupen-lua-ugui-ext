@@ -215,7 +215,7 @@ emu.atupdatescreen(function()
             width = 120,
             height = 23,
         },
-        places = 8,
+        places = 7,
         value = number_value
     })
 

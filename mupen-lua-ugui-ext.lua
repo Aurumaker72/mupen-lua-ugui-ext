@@ -293,8 +293,12 @@ Mupen_lua_ugui.numberbox = function(control)
                 font_name).width
     end
 
+    local full_width = Mupen_lua_ugui.renderer.get_text_size(text,
+        font_size,
+        font_name).width
+    local left = control.rectangle.width / 2 - full_width / 2
     local selected_char_rect = {
-        x = control.rectangle.x + (width * (Mupen_lua_ugui.control_data[control.uid].caret_index + 1)),
+        x = (control.rectangle.x + left) + width * (Mupen_lua_ugui.control_data[control.uid].caret_index - 1),
         y = control.rectangle.y,
         width = width,
         height = control.rectangle.height
