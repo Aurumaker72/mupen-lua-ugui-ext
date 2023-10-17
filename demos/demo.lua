@@ -16,7 +16,8 @@ wgui.resize(initial_size.width + 200, initial_size.height)
 
 local value = 5
 local selected_tab_index = 1
-
+local mouse_wheel = 0
+local number_value = 50
 
 local function get_windows_10_nineslice_style()
     local function expand(t)
@@ -101,19 +102,16 @@ emu.atupdatescreen(function()
     })
 
     local keys = input.get()
-
     Mupen_lua_ugui.begin_frame(BreitbandGraphics, Mupen_lua_ugui.stylers.windows_10, {
-        pointer = {
-            position = {
-                x = keys.xmouse,
-                y = keys.ymouse,
-            },
-            is_primary_down = keys.leftclick,
+        mouse_position = {
+            x = keys.xmouse,
+            y = keys.ymouse,
         },
-        keyboard = {
-            held_keys = keys,
-        },
+        wheel = mouse_wheel,
+        is_primary_down = keys.leftclick,
+        held_keys = keys,
     })
+    mouse_wheel = 0
 
 
     value = Mupen_lua_ugui.spinner({
@@ -207,9 +205,34 @@ emu.atupdatescreen(function()
         style.path = folder("demo.lua") .. "res/windows-10-dark-atlas.png"
         Mupen_lua_ugui_ext.apply_nineslice(style)
     end
+
+    number_value = Mupen_lua_ugui.numberbox({
+        uid = 5065,
+        is_enabled = true,
+        rectangle = {
+            x = initial_size.width + 10,
+            y = 400,
+            width = 120,
+            height = 23,
+        },
+        places = 8,
+        value = number_value
+    })
+
     Mupen_lua_ugui.end_frame()
 end)
 
 emu.atstop(function()
     wgui.resize(initial_size.width, initial_size.height)
+end)
+
+emu.atwindowmessage(function(_, msg_id, wparam, _)
+    if msg_id == 522 then
+        local scroll = math.floor(wparam / 65536)
+        if scroll == 120 then
+            mouse_wheel = 1
+        elseif scroll == 65416 then
+            mouse_wheel = -1
+        end
+    end
 end)
