@@ -146,7 +146,7 @@ emu.atupdatescreen(function()
     })
 
     local keys = input.get()
-    Mupen_lua_ugui.begin_frame(BreitbandGraphics, Mupen_lua_ugui.stylers.windows_10, {
+    Mupen_lua_ugui.begin_frame({
         mouse_position = {
             x = keys.xmouse,
             y = keys.ymouse,
@@ -228,7 +228,8 @@ emu.atupdatescreen(function()
             width = 190,
             height = 20,
         },
-        text = selected_treeview_item and (selected_treeview_item.content .. " (uid: " .. selected_treeview_item.uid .. ")") or "nothing"
+        text = selected_treeview_item and
+        (selected_treeview_item.content .. " (uid: " .. selected_treeview_item.uid .. ")") or "nothing"
     })
     selected_treeview_item = Mupen_lua_ugui.treeview({
         uid = 50652,
@@ -242,7 +243,7 @@ emu.atupdatescreen(function()
         items = treeview_items,
         selected_item = selected_treeview_item
     })
-    
+
     Mupen_lua_ugui.end_frame()
 end)
 
