@@ -18,6 +18,50 @@ local value = 5
 local selected_tab_index = 1
 local mouse_wheel = 0
 local number_value = 50
+local treeview_items = {
+    {
+        uid = 0,
+        open = true,
+        content = "Item A",
+        children = {}
+    },
+    {
+        uid = 1,
+        open = true,
+        content = "Item B",
+        children = {
+            {
+                uid = 3,
+                open = true,
+                content = "Item C",
+                children = {
+                    {
+                        uid = 4,
+                        open = true,
+                        content = "Item D",
+                        children = {}
+                    }
+                }
+            },
+            {
+                uid = 5,
+                open = true,
+                content = "Item E",
+                children = {}
+            }
+        }
+    },
+}
+for i = 1, 10, 1 do
+    treeview_items[1].children[#treeview_items[1].children + 1] = {
+        uid = 100 + i,
+        open = false,
+        content = "Item " .. i,
+        children = {}
+    }
+end
+
+local selected_treeview_item = nil
 
 local function get_windows_10_nineslice_style()
     local function expand(t)
@@ -162,56 +206,12 @@ emu.atupdatescreen(function()
     }).selected_index
 
 
-    if Mupen_lua_ugui.button({
-            uid = 10,
-            is_enabled = true,
-            rectangle = {
-                x = initial_size.width + 10,
-                y = 260,
-                width = 80,
-                height = 23,
-            },
-            text = "windows 11"
-        }) then
-        local style = get_windows_10_nineslice_style()
-        style.path = folder("demo.lua") .. "res/windows-11-atlas.png"
-        Mupen_lua_ugui_ext.apply_nineslice(style)
-    end
-    if Mupen_lua_ugui.button({
-            uid = 11,
-            is_enabled = true,
-            rectangle = {
-                x = initial_size.width + 10,
-                y = 290,
-                width = 80,
-                height = 23,
-            },
-            text = "windows 10"
-        }) then
-        Mupen_lua_ugui_ext.apply_nineslice(get_windows_10_nineslice_style())
-    end
-    if Mupen_lua_ugui.button({
-            uid = 12,
-            is_enabled = true,
-            rectangle = {
-                x = initial_size.width + 10,
-                y = 330,
-                width = 120,
-                height = 23,
-            },
-            text = "windows 10 Dark"
-        }) then
-        local style = get_windows_10_nineslice_style()
-        style.path = folder("demo.lua") .. "res/windows-10-dark-atlas.png"
-        Mupen_lua_ugui_ext.apply_nineslice(style)
-    end
-
     number_value = Mupen_lua_ugui.numberbox({
         uid = 5065,
         is_enabled = true,
         rectangle = {
-            x = initial_size.width + 10,
-            y = 400,
+            x = initial_size.width + 5,
+            y = 260,
             width = 120,
             height = 23,
         },
@@ -219,6 +219,30 @@ emu.atupdatescreen(function()
         value = number_value
     })
 
+    Mupen_lua_ugui.textbox({
+        uid = 12309,
+        is_enabled = true,
+        rectangle = {
+            x = initial_size.width + 5,
+            y = 295,
+            width = 190,
+            height = 20,
+        },
+        text = selected_treeview_item and (selected_treeview_item.content .. " (uid: " .. selected_treeview_item.uid .. ")") or "nothing"
+    })
+    selected_treeview_item = Mupen_lua_ugui.treeview({
+        uid = 50652,
+        is_enabled = true,
+        rectangle = {
+            x = initial_size.width + 5,
+            y = 320,
+            width = 190,
+            height = 250,
+        },
+        items = treeview_items,
+        selected_item = selected_treeview_item
+    })
+    
     Mupen_lua_ugui.end_frame()
 end)
 

@@ -544,3 +544,103 @@ Mupen_lua_ugui_ext.apply_nineslice = function(style)
     Mupen_lua_ugui.stylers.windows_10.list_text_colors = style.listbox.text_colors
     Mupen_lua_ugui.stylers.windows_10.scrollbar_thickness = style.scrollbar_rail.width
 end
+
+
+local function flatten(tree, depth, index, result)
+    for i = 1, #tree, 1 do
+        local item = tree[i]
+
+        result[#result + 1] = {
+            -- we need a reference!
+            item = item,
+            depth = depth,
+            index = index
+        }
+        index = index + 1
+
+        if item.open then
+            index = flatten(item.children, depth + 1, index, result)
+        end
+    end
+    return index
+end
+
+---Places a treeview
+---
+---Additional fields in the `control` table:
+---
+--- `items` — `table` A nested table of items
+---@param control table A table abiding by the mupen-lua-ugui control contract (`{ uid, is_enabled, rectangle }`)
+---@return _ number The new value
+Mupen_lua_ugui.treeview = function(control)
+    -- TODO: scrolling
+    if not Mupen_lua_ugui.control_data[control.uid] then
+        Mupen_lua_ugui.control_data[control.uid] = {
+            selected_uid = nil,
+        }
+    end
+
+    local visual_state = Mupen_lua_ugui.get_visual_state(control)
+    Mupen_lua_ugui.stylers.windows_10.draw_list_frame(control.rectangle, visual_state)
+
+    local flattened = {}
+    flatten(control.items, 0, 0, flattened)
+
+    local margin_left = 0
+    local per_depth_margin = Mupen_lua_ugui.stylers.windows_10.item_height * 2
+
+    for i = 1, #flattened, 1 do
+        local item = flattened[i].item
+        local meta = flattened[i]
+
+        local item_rectangle = {
+            x = control.rectangle.x + (meta.depth * per_depth_margin) + margin_left,
+            y = control.rectangle.y + (meta.index * Mupen_lua_ugui.stylers.windows_10.item_height),
+            width = control.rectangle.width - ((meta.depth * per_depth_margin) + margin_left),
+            height = Mupen_lua_ugui.stylers.windows_10.item_height,
+        }
+        local button_rectangle = {
+            x = item_rectangle.x,
+            y = item_rectangle.y,
+            width = Mupen_lua_ugui.stylers.windows_10.item_height,
+            height = Mupen_lua_ugui.stylers.windows_10.item_height,
+        }
+        local text_rectangle = {
+            x = button_rectangle.x + button_rectangle.width + margin_left,
+            y = item_rectangle.y,
+            width = item_rectangle.width - button_rectangle.width,
+            height = Mupen_lua_ugui.stylers.windows_10.item_height,
+        }
+
+        -- we dont need buttons for childless nodes
+        if #item.children > 0 then
+            item.open = Mupen_lua_ugui.toggle_button({
+                uid = control.uid + i,
+                is_enabled = true,
+                is_checked = item.open,
+                text = item.open and "-" or "+",
+                rectangle = button_rectangle
+            })
+        end
+
+        local effective_rectangle = #item.children > 0 and text_rectangle or item_rectangle
+
+        if BreitbandGraphics.is_point_inside_rectangle(Mupen_lua_ugui.input_state.mouse_position, effective_rectangle) and Mupen_lua_ugui.internal.is_mouse_just_down() then
+            Mupen_lua_ugui.control_data[control.uid].selected_uid = item.uid
+        end
+
+
+        Mupen_lua_ugui.stylers.windows_10.draw_list_item(item.content,
+            effective_rectangle,
+            Mupen_lua_ugui.control_data[control.uid].selected_uid == item.uid and Mupen_lua_ugui.visual_states.active or
+            Mupen_lua_ugui.visual_states.normal)
+    end
+
+    -- return ref to selected item
+    for _, value in pairs(flattened) do
+        if value.item.uid == Mupen_lua_ugui.control_data[control.uid].selected_uid then
+            return value.item
+        end 
+    end
+    return nil
+end
