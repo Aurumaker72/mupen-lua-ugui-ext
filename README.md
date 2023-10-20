@@ -21,3 +21,4 @@
 # 🔌 Extensions
 
 - Nine-slice drawing
+- RenderTarget draw cache
