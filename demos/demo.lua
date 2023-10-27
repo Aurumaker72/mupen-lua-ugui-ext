@@ -14,10 +14,9 @@ dofile(folder("demos/demo.lua") .. "mupen-lua-ugui-ext.lua")
 local initial_size = wgui.info()
 wgui.resize(initial_size.width + 200, initial_size.height)
 
-local value = 5
 local selected_tab_index = 1
 local mouse_wheel = 0
-local number_value = 50
+local number_value = -50
 local treeview_items = {
     {
         uid = 0,
@@ -158,7 +157,7 @@ emu.atupdatescreen(function()
     mouse_wheel = 0
 
 
-    value = Mupen_lua_ugui.spinner({
+    number_value = Mupen_lua_ugui.spinner({
         uid = 1,
         is_enabled = true,
         rectangle = {
@@ -167,13 +166,13 @@ emu.atupdatescreen(function()
             width = 80,
             height = 23,
         },
-        value = value,
+        value = number_value,
         is_horizontal = true,
-        minimum_value = -5,
-        maximum_value = 10,
+        minimum_value = math.mininteger,
+        maximum_value = math.maxinteger,
     })
 
-    value = Mupen_lua_ugui.spinner({
+    number_value = Mupen_lua_ugui.spinner({
         uid = 2,
         is_enabled = true,
         rectangle = {
@@ -182,10 +181,10 @@ emu.atupdatescreen(function()
             width = 80,
             height = 23,
         },
-        value = value,
+        value = number_value,
         is_horizontal = false,
-        minimum_value = -5,
-        maximum_value = 10,
+        minimum_value = math.mininteger,
+        maximum_value = math.maxinteger,
     })
 
     selected_tab_index = Mupen_lua_ugui.tabcontrol({
@@ -216,7 +215,8 @@ emu.atupdatescreen(function()
             height = 23,
         },
         places = 7,
-        value = number_value
+        value = number_value,
+        show_negative = true
     })
 
     Mupen_lua_ugui.textbox({
