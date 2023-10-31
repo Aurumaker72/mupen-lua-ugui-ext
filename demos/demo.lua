@@ -159,7 +159,6 @@ emu.atupdatescreen(function()
 
     number_value = Mupen_lua_ugui.spinner({
         uid = 1,
-        is_enabled = true,
         rectangle = {
             x = initial_size.width + 10,
             y = 30,
@@ -174,7 +173,6 @@ emu.atupdatescreen(function()
 
     number_value = Mupen_lua_ugui.spinner({
         uid = 2,
-        is_enabled = true,
         rectangle = {
             x = initial_size.width + 10,
             y = 60,
@@ -189,7 +187,6 @@ emu.atupdatescreen(function()
 
     selected_tab_index = Mupen_lua_ugui.tabcontrol({
         uid = 3,
-        is_enabled = true,
         rectangle = {
             x = initial_size.width + 5,
             y = 100,
@@ -207,7 +204,6 @@ emu.atupdatescreen(function()
 
     number_value = Mupen_lua_ugui.numberbox({
         uid = 5065,
-        is_enabled = true,
         rectangle = {
             x = initial_size.width + 5,
             y = 260,
@@ -221,7 +217,6 @@ emu.atupdatescreen(function()
 
     Mupen_lua_ugui.textbox({
         uid = 12309,
-        is_enabled = true,
         rectangle = {
             x = initial_size.width + 5,
             y = 295,
@@ -233,7 +228,6 @@ emu.atupdatescreen(function()
     })
     selected_treeview_item = Mupen_lua_ugui.treeview({
         uid = 50652,
-        is_enabled = true,
         rectangle = {
             x = initial_size.width + 5,
             y = 320,

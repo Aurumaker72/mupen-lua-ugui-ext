@@ -134,7 +134,6 @@ Mupen_lua_ugui.spinner = function(control)
 
     local new_text = Mupen_lua_ugui.textbox({
         uid = control.uid,
-        is_enabled = true,
         rectangle = {
             x = control.rectangle.x,
             y = control.rectangle.y,
