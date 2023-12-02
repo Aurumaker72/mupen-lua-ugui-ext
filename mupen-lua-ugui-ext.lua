@@ -394,7 +394,8 @@ Mupen_lua_ugui.numberbox = function(control)
 
     local text = string.format("%0" .. tostring(control.places) .. "d", control.value)
 
-    BreitbandGraphics.draw_text(control.rectangle, "center", "center", {},
+    BreitbandGraphics.draw_text(control.rectangle, "center", "center",
+        { aliased = not Mupen_lua_ugui.standard_styler.cleartype },
         Mupen_lua_ugui.standard_styler.edit_frame_text_colors[visual_state],
         font_size,
         font_name, text)
@@ -483,7 +484,8 @@ Mupen_lua_ugui.numberbox = function(control)
         -- draw the char at caret index in inverted color
         BreitbandGraphics.fill_rectangle(selected_char_rect, BreitbandGraphics.hex_to_color('#0078D7'))
         BreitbandGraphics.push_clip(selected_char_rect)
-        BreitbandGraphics.draw_text(control.rectangle, "center", "center", {},
+        BreitbandGraphics.draw_text(control.rectangle, "center", "center",
+            { aliased = not Mupen_lua_ugui.standard_styler.cleartype },
             BreitbandGraphics.invert_color(Mupen_lua_ugui.standard_styler.edit_frame_text_colors[visual_state]),
             font_size,
             font_name, text)
@@ -676,7 +678,7 @@ Mupen_lua_ugui_ext.apply_nineslice = function(style)
                 y = rect.y,
                 width = rect.width,
                 height = rect.height,
-            }, 'start', 'center', { clip = true },
+            }, 'start', 'center', { clip = true, aliased = not Mupen_lua_ugui.standard_styler.cleartype },
             Mupen_lua_ugui.standard_styler.list_text_colors[visual_state],
             Mupen_lua_ugui.standard_styler.font_size,
             Mupen_lua_ugui.standard_styler.font_name,
