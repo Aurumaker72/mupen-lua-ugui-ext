@@ -1,4 +1,4 @@
--- mupen-lua-ugui-ext 1.1.0
+-- mupen-lua-ugui-ext 1.2.0
 -- https://github.com/Aurumaker72/mupen-lua-ugui-ext
 
 Mupen_lua_ugui_ext = {
@@ -15,17 +15,18 @@ Mupen_lua_ugui_ext = {
             return result
         end
     end,
+    get_digit = function(value, length, index)
+        return math.floor(value / math.pow(10, length - index)) % 10
+    end,
+    set_digit = function(value, length, digit_value, index)
+        local old_digit_value = Mupen_lua_ugui_ext.internal.get_digit(value, length, index)
+        local new_value = value + (digit_value - old_digit_value) * math.pow(10, length - index)
+        local max = math.pow(10, length)
+        return (new_value + max) % max
+    end,
     internal = {
         rt_lut = {},
-        get_digit = function(value, length, index)
-            return math.floor(value / math.pow(10, length - index)) % 10
-        end,
-        set_digit = function(value, length, digit_value, index)
-            local old_digit_value = Mupen_lua_ugui_ext.internal.get_digit(value, length, index)
-            local new_value = value + (digit_value - old_digit_value) * math.pow(10, length - index)
-            local max = math.pow(10, length)
-            return (new_value + max) % max
-        end,
+
         rectangle_to_key = function(rectangle)
             return rectangle.x .. rectangle.y .. rectangle.width .. rectangle.height
         end,
@@ -45,54 +46,19 @@ Mupen_lua_ugui_ext = {
                 Mupen_lua_ugui_ext.internal.rt_lut[key] = render_target
             end
             -- bitmap has same key as render_target
-            d2d.draw_image(rectangle.x, rectangle.y,
+            d2d.draw_image(
+                rectangle.x,
+                rectangle.y,
                 rectangle.x + rectangle.width,
                 rectangle.y + rectangle.height,
-                0, 0, rectangle.width,
-                rectangle.height, Mupen_lua_ugui_ext.internal.rt_lut[key], 1, 0)
+                0,
+                0,
+                rectangle.width,
+                rectangle.height,
+                1,
+                0,
+                d2d.get_render_target_bitmap(Mupen_lua_ugui_ext.internal.rt_lut[key]))
         end,
-
-        -- applies a text drawing hook to breitbandgraphics which speeds up text drawing
-        -- TODO: fix this, as it currently doesnt work lol
-        apply_text_hook = function()
-            BreitbandGraphics.uncached_draw_text = BreitbandGraphics.draw_text
-            BreitbandGraphics.draw_text = function(rectangle, horizontal_alignment, vertical_alignment, style, color,
-                                                   font_size, font_name,
-                                                   text)
-                local key = Mupen_lua_ugui_ext.internal.rectangle_to_key(rectangle)
-                key = key .. horizontal_alignment
-                key = key .. vertical_alignment
-                key = key .. (style.clip and tostring(style.clip) or "")
-                key = key .. color.r
-                key = key .. color.g
-                key = key .. color.b
-                key = key .. (color.a and color.a or "")
-                key = key .. font_size
-                key = key .. font_name
-                key = key .. (text and text or "")
-
-                if not Mupen_lua_ugui_ext.internal.rt_lut[key] then
-                    local render_target = d2d.create_render_target(rectangle.width, rectangle.height)
-                    d2d.begin_render_target(render_target)
-                    BreitbandGraphics.uncached_draw_text({
-                        x = 0,
-                        y = 0,
-                        width = rectangle.width,
-                        height = rectangle.height,
-                    }, "center", "center", style, color, font_size, font_name, text)
-                    d2d.end_render_target(render_target)
-
-                    Mupen_lua_ugui_ext.internal.rt_lut[key] = render_target
-                end
-                -- bitmap has same key as render_target
-                d2d.draw_image(rectangle.x, rectangle.y,
-                    rectangle.x + rectangle.width,
-                    rectangle.y + rectangle.height,
-                    0, 0, rectangle.width,
-                    rectangle.height, Mupen_lua_ugui_ext.internal.rt_lut[key], 1, 0)
-            end
-        end,
-
         purge_lut = function()
             -- invalidate LUT and destroy contents
             if d2d and d2d.destroy_render_target then
@@ -107,13 +73,11 @@ Mupen_lua_ugui_ext = {
 }
 
 if not d2d or not d2d.create_render_target then
-    print("Falling back to uncached nineslice rendering. Please update to 1.1.5")
+    print(
+        "Falling back to uncached nineslice rendering, this will severely degrade performance. Please update to mupen64-rr-lua 1.1.5")
     Mupen_lua_ugui_ext.internal.cached_draw = function(type, rectangle, visual_state, draw)
         draw(rectangle)
     end
-end
-if not d2d or not d2d.purge_text_layout_cache then
-    print("Using uncached text rendering. Please update to 1.1.6")
 end
 
 ---Places a Spinner, or NumericUpDown control
@@ -499,131 +463,6 @@ Mupen_lua_ugui.numberbox = function(control)
         control.places)
 
     return math.floor(control.value) * (is_positive and 1 or -1)
-end
-
-BreitbandGraphics.draw_image_nineslice = function(destination_rectangle, source_rectangle, source_rectangle_center, path,
-                                                  color, filter)
-    destination_rectangle = {
-        x = math.floor(destination_rectangle.x),
-        y = math.floor(destination_rectangle.y),
-        width = math.ceil(destination_rectangle.width),
-        height = math.ceil(destination_rectangle.height),
-    }
-    source_rectangle = {
-        x = math.floor(source_rectangle.x),
-        y = math.floor(source_rectangle.y),
-        width = math.ceil(source_rectangle.width),
-        height = math.ceil(source_rectangle.height),
-    }
-    local corner_size = {
-        x = math.abs(source_rectangle_center.x - source_rectangle.x),
-        y = math.abs(source_rectangle_center.y - source_rectangle.y),
-    }
-
-
-    local top_left = {
-        x = source_rectangle.x,
-        y = source_rectangle.y,
-        width = corner_size.x,
-        height = corner_size.y,
-    }
-    local bottom_left = {
-        x = source_rectangle.x,
-        y = source_rectangle_center.y + source_rectangle_center.height,
-        width = corner_size.x,
-        height = corner_size.y,
-    }
-    local left = {
-        x = source_rectangle.x,
-        y = source_rectangle_center.y,
-        width = corner_size.x,
-        height = source_rectangle.height - corner_size.y * 2,
-    }
-    local top_right = {
-        x = source_rectangle.x + source_rectangle.width - corner_size.x,
-        y = source_rectangle.y,
-        width = corner_size.x,
-        height = corner_size.y,
-    }
-    local bottom_right = {
-        x = source_rectangle.x + source_rectangle.width - corner_size.x,
-        y = source_rectangle_center.y + source_rectangle_center.height,
-        width = corner_size.x,
-        height = corner_size.y,
-    }
-    local top = {
-        x = source_rectangle_center.x,
-        y = source_rectangle.y,
-        width = source_rectangle.width - corner_size.x * 2,
-        height = corner_size.y,
-    }
-    local right = {
-        x = source_rectangle.x + source_rectangle.width - corner_size.x,
-        y = source_rectangle_center.y,
-        width = corner_size.x,
-        height = source_rectangle.height - corner_size.y * 2,
-    }
-    local bottom = {
-        x = source_rectangle_center.x,
-        y = source_rectangle.y + source_rectangle.height - corner_size.y,
-        width = source_rectangle.width - corner_size.x * 2,
-        height = corner_size.y,
-    }
-
-    BreitbandGraphics.draw_image({
-        x = destination_rectangle.x,
-        y = destination_rectangle.y,
-        width = top_left.width,
-        height = top_left.height,
-    }, top_left, path, color, filter)
-    BreitbandGraphics.draw_image({
-        x = destination_rectangle.x + destination_rectangle.width - top_right.width,
-        y = destination_rectangle.y,
-        width = top_right.width,
-        height = top_right.height,
-    }, top_right, path, color, filter)
-    BreitbandGraphics.draw_image({
-        x = destination_rectangle.x,
-        y = destination_rectangle.y + destination_rectangle.height - bottom_left.height,
-        width = bottom_left.width,
-        height = bottom_left.height,
-    }, bottom_left, path, color, filter)
-    BreitbandGraphics.draw_image({
-        x = destination_rectangle.x + destination_rectangle.width - bottom_right.width,
-        y = destination_rectangle.y + destination_rectangle.height - bottom_right.height,
-        width = bottom_right.width,
-        height = bottom_right.height,
-    }, bottom_right, path, color, filter)
-    BreitbandGraphics.draw_image({
-        x = destination_rectangle.x + top_left.width,
-        y = destination_rectangle.y + top_left.height,
-        width = destination_rectangle.width - bottom_right.width * 2,
-        height = destination_rectangle.height - bottom_right.height * 2,
-    }, source_rectangle_center, path, color, filter)
-    BreitbandGraphics.draw_image({
-        x = destination_rectangle.x,
-        y = destination_rectangle.y + top_left.height,
-        width = left.width,
-        height = destination_rectangle.height - bottom_left.height * 2,
-    }, left, path, color, filter)
-    BreitbandGraphics.draw_image({
-        x = destination_rectangle.x + destination_rectangle.width - top_right.width,
-        y = destination_rectangle.y + top_right.height,
-        width = left.width,
-        height = destination_rectangle.height - bottom_right.height * 2,
-    }, right, path, color, filter)
-    BreitbandGraphics.draw_image({
-        x = destination_rectangle.x + top_left.width,
-        y = destination_rectangle.y,
-        width = destination_rectangle.width - top_right.width * 2,
-        height = top.height,
-    }, top, path, color, filter)
-    BreitbandGraphics.draw_image({
-        x = destination_rectangle.x + top_left.width,
-        y = destination_rectangle.y + destination_rectangle.height - bottom.height,
-        width = destination_rectangle.width - bottom_right.width * 2,
-        height = bottom.height,
-    }, bottom, path, color, filter)
 end
 
 
