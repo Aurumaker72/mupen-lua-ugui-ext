@@ -19,23 +19,26 @@ Mupen_lua_ugui_ext = {
         return math.floor(value / math.pow(10, length - index)) % 10
     end,
     set_digit = function(value, length, digit_value, index)
-        local old_digit_value = Mupen_lua_ugui_ext.internal.get_digit(value, length, index)
+        local old_digit_value = Mupen_lua_ugui_ext.get_digit(value, length, index)
         local new_value = value + (digit_value - old_digit_value) * math.pow(10, length - index)
         local max = math.pow(10, length)
         return (new_value + max) % max
     end,
     internal = {
+        drawings = {},
+        -- 1.1.5 - 1.1.6
         rt_lut = {},
-
         rectangle_to_key = function(rectangle)
             return rectangle.x .. rectangle.y .. rectangle.width .. rectangle.height
         end,
-        cached_draw = function(type, rectangle, visual_state, draw)
-            local key = type .. visual_state .. Mupen_lua_ugui_ext.internal.rectangle_to_key(rectangle)
+        params_to_key = function(type, rectangle, visual_state)
+            return type .. visual_state .. Mupen_lua_ugui_ext.internal.rectangle_to_key(rectangle)
+        end,
+        cached_draw = function(key, rectangle, draw_callback)
             if not Mupen_lua_ugui_ext.internal.rt_lut[key] then
                 local render_target = d2d.create_render_target(rectangle.width, rectangle.height)
                 d2d.begin_render_target(render_target)
-                draw({
+                draw_callback({
                     x = 0,
                     y = 0,
                     width = rectangle.width,
@@ -46,37 +49,63 @@ Mupen_lua_ugui_ext = {
                 Mupen_lua_ugui_ext.internal.rt_lut[key] = render_target
             end
             -- bitmap has same key as render_target
-            d2d.draw_image(
-                rectangle.x,
-                rectangle.y,
+            d2d.draw_image(rectangle.x, rectangle.y,
                 rectangle.x + rectangle.width,
                 rectangle.y + rectangle.height,
-                0,
-                0,
-                rectangle.width,
-                rectangle.height,
-                1,
-                0,
-                d2d.get_render_target_bitmap(Mupen_lua_ugui_ext.internal.rt_lut[key]))
+                0, 0, rectangle.width,
+                rectangle.height, Mupen_lua_ugui_ext.internal.rt_lut[key], 1, 0)
         end,
-        purge_lut = function()
-            -- invalidate LUT and destroy contents
-            if d2d and d2d.destroy_render_target then
-                for i = 1, #Mupen_lua_ugui_ext.internal.rt_lut, 1 do
-                    d2d.destroy_render_target(Mupen_lua_ugui_ext.internal.rt_lut[i])
-                end
+
+    },
+    free = function()
+        if d2d and d2d.destroy_render_target then
+            for i = 1, #Mupen_lua_ugui_ext.internal.rt_lut, 1 do
+                d2d.destroy_render_target(Mupen_lua_ugui_ext.internal.rt_lut[i])
             end
-            Mupen_lua_ugui_ext.internal.rt_lut = {}
-            print("Purged render target cache")
-        end,
-    }
+        end
+        Mupen_lua_ugui_ext.internal.rt_lut = {}
+        print("Purged render target cache")
+    end,
 }
 
-if not d2d or not d2d.create_render_target then
+
+if d2d.draw_to_image then
+    print("Using 1.1.7 cached drawing")
+
+    Mupen_lua_ugui_ext.internal.cached_draw = function(key, rectangle, draw_callback)
+        if not Mupen_lua_ugui_ext.internal.drawings[key] then
+            Mupen_lua_ugui_ext.internal.drawings[key] = d2d.draw_to_image(rectangle.width, rectangle.height, function()
+                draw_callback({
+                    x = 0,
+                    y = 0,
+                    width = math.floor(rectangle.width),
+                    height = math.floor(rectangle.height),
+                })
+            end)
+        end
+        d2d.draw_image(
+            math.floor(rectangle.x),
+            math.floor(rectangle.y),
+            math.floor(rectangle.x + rectangle.width),
+            math.floor(rectangle.y + rectangle.height),
+            0,
+            0,
+            math.floor(rectangle.width),
+            math.floor(rectangle.height), 1, 0, Mupen_lua_ugui_ext.internal.drawings[key])
+    end
+    Mupen_lua_ugui_ext.free = function()
+        for key, value in pairs(Mupen_lua_ugui_ext.internal.drawings) do
+            d2d.free_image(value)
+        end
+        Mupen_lua_ugui_ext.internal.drawings = {}
+    end
+end
+
+if not d2d.create_render_target and not d2d.draw_to_image then
     print(
         "Falling back to uncached nineslice rendering, this will severely degrade performance. Please update to mupen64-rr-lua 1.1.5")
-    Mupen_lua_ugui_ext.internal.cached_draw = function(type, rectangle, visual_state, draw)
-        draw(rectangle)
+    Mupen_lua_ugui_ext.internal.cached_draw = function(key, rectangle, draw_callback)
+        draw_callback(rectangle)
     end
 end
 
@@ -344,8 +373,8 @@ Mupen_lua_ugui.numberbox = function(control)
     end
 
     local function increment_digit(index, value)
-        control.value = Mupen_lua_ugui_ext.internal.set_digit(control.value, control.places,
-            Mupen_lua_ugui_ext.internal.get_digit(control.value, control.places,
+        control.value = Mupen_lua_ugui_ext.set_digit(control.value, control.places,
+            Mupen_lua_ugui_ext.get_digit(control.value, control.places,
                 index) + value,
             index)
     end
@@ -471,12 +500,11 @@ Mupen_lua_ugui_ext.apply_nineslice = function(style)
         print("No D2D available, falling back to unchanged standard styler to avoid performance issues")
         return
     end
-    if d2d.purge_text_layout_cache then
-        d2d.purge_text_layout_cache()
-    end
-    Mupen_lua_ugui_ext.internal.purge_lut()
+    Mupen_lua_ugui_ext.free()
     Mupen_lua_ugui.standard_styler.draw_raised_frame = function(control, visual_state)
-        Mupen_lua_ugui_ext.internal.cached_draw("raised_frame", control.rectangle, visual_state, function(eff_rectangle)
+        local key = Mupen_lua_ugui_ext.internal.params_to_key("raised_frame", control.rectangle, visual_state)
+
+        Mupen_lua_ugui_ext.internal.cached_draw(key, control.rectangle, function(eff_rectangle)
             BreitbandGraphics.draw_image_nineslice(eff_rectangle,
                 style.button.states[visual_state].source,
                 style.button.states[visual_state].center,
@@ -485,7 +513,9 @@ Mupen_lua_ugui_ext.apply_nineslice = function(style)
     end
     Mupen_lua_ugui.standard_styler.draw_edit_frame = function(control, rectangle,
                                                               visual_state)
-        Mupen_lua_ugui_ext.internal.cached_draw("edit_frame", rectangle, visual_state, function(eff_rectangle)
+        local key = Mupen_lua_ugui_ext.internal.params_to_key("edit_frame", rectangle, visual_state)
+
+        Mupen_lua_ugui_ext.internal.cached_draw(key, rectangle, function(eff_rectangle)
             BreitbandGraphics.draw_image_nineslice(eff_rectangle,
                 style.textbox.states[visual_state].source,
                 style.textbox.states[visual_state].center,
@@ -493,7 +523,9 @@ Mupen_lua_ugui_ext.apply_nineslice = function(style)
         end)
     end
     Mupen_lua_ugui.standard_styler.draw_list_frame = function(rectangle, visual_state)
-        Mupen_lua_ugui_ext.internal.cached_draw("list_frame", rectangle, visual_state, function(eff_rectangle)
+        local key = Mupen_lua_ugui_ext.internal.params_to_key("list_frame", rectangle, visual_state)
+
+        Mupen_lua_ugui_ext.internal.cached_draw(key, rectangle, function(eff_rectangle)
             BreitbandGraphics.draw_image_nineslice(eff_rectangle,
                 style.listbox.states[visual_state].source,
                 style.listbox.states[visual_state].center,
@@ -527,9 +559,12 @@ Mupen_lua_ugui_ext.apply_nineslice = function(style)
         BreitbandGraphics.draw_image(container_rectangle,
             style.scrollbar_rail,
             style.path, BreitbandGraphics.colors.white, "nearest")
+
+        local key = Mupen_lua_ugui_ext.internal.params_to_key("scrollbar_thumb", thumb_rectangle, visual_state)
+
         Mupen_lua_ugui_ext.internal.cached_draw(
-            "scrollbar_thumb", thumb_rectangle,
-            visual_state,
+            key,
+            thumb_rectangle,
             function(eff_rectangle)
                 BreitbandGraphics.draw_image_nineslice(eff_rectangle,
                     style.scrollbar_thumb.states[visual_state].source,
